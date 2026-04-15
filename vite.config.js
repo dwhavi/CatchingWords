@@ -1,39 +1,50 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  server: {
-    proxy: {
-      '/api/proxy': {
-        target: '',
-        changeOrigin: true,
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq, req) => {
-            const url = new URL(req.url, 'http://localhost')
-            const targetUrl = url.searchParams.get('url')
-            if (targetUrl) {
-              const parsed = new URL(targetUrl)
-              proxyReq.setHeader('host', parsed.host)
-              proxyReq.path = parsed.pathname + parsed.search
-              proxyReq.setHeader('referer', targetUrl)
-            }
-          })
-        },
-        router: (req) => {
-          const url = new URL(req.url, 'http://localhost')
+function proxyPlugin() {
+  return {
+    name: 'url-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/proxy', async (req, res) => {
+        try {
+          const url = new URL(req.url || '', 'http://localhost')
           const targetUrl = url.searchParams.get('url')
-          if (targetUrl) {
-            const parsed = new URL(targetUrl)
-            return {
-              host: parsed.hostname,
-              port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
-              protocol: parsed.protocol === 'https:' ? 'https:' : 'http:',
-            }
+          if (!targetUrl) {
+            res.statusCode = 400
+            res.end('Missing url parameter')
+            return
           }
-        },
-      },
+          const parsed = new URL(targetUrl)
+          if (!['http:', 'https:'].includes(parsed.protocol)) {
+            res.statusCode = 400
+            res.end('Only http/https URLs allowed')
+            return
+          }
+          const response = await fetch(targetUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'text/html,application/xhtml+xml,*/*',
+              'Referer': targetUrl,
+            },
+          })
+          const text = await response.text()
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          res.end(text)
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error'
+          res.statusCode = 500
+          res.end(message)
+        }
+      })
     },
+  }
+}
+
+export default defineConfig({
+  plugins: [react(), tailwindcss(), proxyPlugin()],
+  server: {
+    host: '0.0.0.0',
   },
 })
