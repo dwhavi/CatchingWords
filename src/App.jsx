@@ -77,28 +77,40 @@ function LinkIcon() {
 // ── Word row ──
 function WordRow({ item }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 py-3 sm:py-4 group hover:bg-slate-50 px-2 sm:px-3 rounded-lg transition-colors">
-      <span className="text-xs font-bold text-indigo-600 w-6 shrink-0">{item.rank}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="font-semibold text-slate-800 text-base">{item.word}</span>
-          <span className="text-xs text-slate-400 font-mono">{item.phonetic}</span>
-          <button
-            onClick={() => speak(item.word)}
-            className="inline-flex items-center justify-center w-7 h-7 rounded-full text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700 transition-colors cursor-pointer"
-            title="단어 듣기"
-          >
-            <SpeakerIcon />
-          </button>
+    <div className="flex flex-col gap-2 py-3 sm:py-4 group hover:bg-slate-50 px-2 sm:px-3 rounded-lg transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+        <span className="text-xs font-bold text-indigo-600 w-6 shrink-0">{item.rank}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="font-semibold text-slate-800 text-base">{item.word}</span>
+            <span className="text-xs text-slate-400 font-mono">{item.phonetic}</span>
+            <button
+              onClick={() => speak(item.word)}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-full text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700 transition-colors cursor-pointer"
+              title="단어 듣기"
+            >
+              <SpeakerIcon />
+            </button>
+          </div>
+          <p className="text-sm text-slate-700 mt-0.5 font-medium">{item.meaningKo}</p>
+          {item.meaningEn && (
+            <p className="text-xs text-slate-400 mt-0.5">{item.meaningEn}</p>
+          )}
         </div>
-        <p className="text-sm text-slate-700 mt-0.5 font-medium">{item.meaningKo}</p>
-        {item.meaningEn && (
-          <p className="text-xs text-slate-400 mt-0.5">{item.meaningEn}</p>
-        )}
+        <span className="self-start sm:self-center text-xs font-medium bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full shrink-0">
+          {item.count}회
+        </span>
       </div>
-      <span className="self-start sm:self-center text-xs font-medium bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full shrink-0">
-        {item.count}회
-      </span>
+      {item.sentences?.length > 0 && (
+        <div className="ml-6 sm:ml-10 space-y-1.5 border-l-2 border-slate-100 pl-3">
+          {item.sentences.map((s, i) => (
+            <div key={i} className="text-sm">
+              <p className="text-slate-600 leading-relaxed">{s.en}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{s.ko}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -149,7 +161,7 @@ function App() {
       const topWords = rawWords.slice(0, 30)
 
       // 2. 사전 정보 병합
-      const enriched = await enrichWithDictionary(topWords)
+      const enriched = await enrichWithDictionary(topWords, targetText)
       setWords(enriched)
     } catch (e) {
       setError(e.message || '분석 중 오류가 발생했습니다.')
