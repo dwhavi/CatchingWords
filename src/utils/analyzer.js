@@ -2,48 +2,35 @@ import STOPWORDS from './stopwords'
 
 /**
  * 텍스트에서 단어를 추출하고 빈도수를 계산
- * @param {string} text - 분석할 텍스트
- * @param {object} options
- * @param {boolean} options.removeStopwords - 불용어 제거 여부
- * @param {boolean} options.ignoreCase - 대소문자 무시 여부
- * @returns {{ word: string, count: number }[]}
  */
 export function analyzeText(text, { removeStopwords = true, ignoreCase = true } = {}) {
   if (!text || !text.trim()) return []
 
   let processed = text.toLowerCase()
-
-  // 단어만 추출 (영문자만)
   const words = processed.match(/[a-z]+/g)
   if (!words) return []
 
-  // 불용어 제거
   const filtered = removeStopwords
     ? words.filter(w => !STOPWORDS.has(w) && w.length > 1)
     : words.filter(w => w.length > 1)
 
-  // 빈도수 계산
   const freq = {}
   for (const w of filtered) {
     freq[w] = (freq[w] || 0) + 1
   }
 
-  // 내림차순 정렬
   return Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
     .map(([word, count]) => ({ word, count }))
 }
 
 /**
- * 단어 리스트에 사전 정보를 병합
- * @param {{ word: string, count: number }[]} wordList
- * @returns {Promise<{ rank: number, word: string, count: number, phonetic: string, meaning: string }[]>}
+ * 단어 리스트에 사전 정보 + 한국어 번역 병합
  */
 export async function enrichWithDictionary(wordList) {
   const results = []
 
-  // 병렬 처리 but 한 번에 5개씩 제한 (API rate limit 대응)
-  const batchSize = 5
+  const batchSize = 3
   for (let i = 0; i < wordList.length; i += batchSize) {
     const batch = wordList.slice(i, i + batchSize)
     const enriched = await Promise.all(batch.map(lookupWord))
@@ -54,7 +41,23 @@ export async function enrichWithDictionary(wordList) {
 }
 
 /**
- * 단어 하나를 사전 API에서 조회
+ * MyMemory API로 영→한 번역
+ */
+async function translateToKorean(text) {
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|ko`
+    )
+    if (!res.ok) throw new Error('Translation failed')
+    const data = await res.json()
+    return data.responseData?.translatedText || ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * 단어 하나를 영-영 사전에서 조회 + 한국어 번역
  */
 async function lookupWord({ word, count }) {
   try {
@@ -69,17 +72,22 @@ async function lookupWord({ word, count }) {
       || entry.phonetics?.find(p => p.audio)?.text
       || ''
 
-    // 뜻 (명사 우선, 첫 번째 의미)
-    let meaning = ''
+    // 영어 뜻 (명사 우선, 첫 번째 의미)
+    let meaningEn = ''
     for (const def of entry.meanings || []) {
       if (def.definitions?.length) {
-        meaning = def.definitions[0].definition
+        meaningEn = def.definitions[0].definition
         break
       }
     }
 
-    return { word, count, phonetic, meaning }
+    // 한국어 번역
+    const meaningKo = await translateToKorean(meaningEn || word)
+
+    return { word, count, phonetic, meaningEn, meaningKo }
   } catch {
-    return { word, count, phonetic: '', meaning: '사전에 없는 단어' }
+    // 사전에 없으면 번역만 시도
+    const meaningKo = await translateToKorean(word)
+    return { word, count, phonetic: '', meaningEn: '', meaningKo }
   }
 }

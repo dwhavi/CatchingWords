@@ -91,7 +91,10 @@ function WordRow({ item }) {
             <SpeakerIcon />
           </button>
         </div>
-        <p className="text-sm text-slate-500 mt-0.5">{item.meaning}</p>
+        <p className="text-sm text-slate-700 mt-0.5 font-medium">{item.meaningKo}</p>
+        {item.meaningEn && (
+          <p className="text-xs text-slate-400 mt-0.5">{item.meaningEn}</p>
+        )}
       </div>
       <span className="self-start sm:self-center text-xs font-medium bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full shrink-0">
         {item.count}회
