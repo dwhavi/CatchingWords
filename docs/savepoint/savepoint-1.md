@@ -25,12 +25,18 @@
 - Web Speech API (TTS)
 - Vite server proxy (URL 크롤링 CORS 대응)
 
+## 알려진 버그
+- `vite.config.js` 프록시 설정 버그: `target: ''` (빈 값) → `getaddrinfo ENOTFOUND base.invalid` 에러 발생
+  - router로 동적 라우팅 중이나 target이 빈 값이라 DNS 실패
+  - 수정 방안: target을 임시값(예: `https://example.com`)으로 설정하거나, `http-proxy` 미들웨어로 직접 구현
+
 ## 복구 방법
 1. `docs/INDEX.md` 읽고 작업 매핑 확인
 2. `docs/savepoint/savepoint-1.md` (이 파일) 읽고 현재 상태 파악
 3. `npm install && npm run dev`로 서버 시작
 
 ## 다음 단계
+- **[버그수정]** vite.config.js URL 프록시 target 수정
 - 기획서 추가 기능 논의 (마스터가 생각날 때마다)
 - UI/UX 개선 (반응형, 애니메이션 등)
 - 한국어 뜻 번역 (현재 영어 뜻만 표시)
